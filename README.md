@@ -2,7 +2,7 @@
 
 This is a plugin that allows you to import GldSrc .mdl model files into godot.
 
-![](https://i.imgur.com/IPGmCNc.mp4)
+![](https://i.postimg.cc/7ZtBxKNy/anims.gif)
 ![](https://i.imgur.com/4Xn3oS5.png)
 ![](https://i.imgur.com/fWF6Ojj.png)
 ![](https://i.imgur.com/zc8w2sw.png)
