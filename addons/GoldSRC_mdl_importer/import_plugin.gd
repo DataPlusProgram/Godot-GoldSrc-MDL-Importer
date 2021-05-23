@@ -24,7 +24,7 @@ func get_preset_name(preset):
 
 func get_import_options(preset):
 	match preset:
-		Presets.DEFAULT: return[{"name":"texture_filtering", "default_value":false}]
+		Presets.DEFAULT: return[{"name":"texture_filtering", "default_value":true}]
 		_: return[]
 	
 func get_option_visibility(option, options):
