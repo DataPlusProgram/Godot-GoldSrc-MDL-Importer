@@ -57,6 +57,10 @@ func mdlParse(path,textureFilter = false):
 		return null
 	
 	fileDict["version"] = file.get_32()
+	
+	if fileDict["version"] < 10:
+		return null
+	
 	fileDict["name"] = file.get_String(64)
 	fileDict["size"] = file.get_32()
 	fileDict["eyePosition"] = getVectorXZY(file)
