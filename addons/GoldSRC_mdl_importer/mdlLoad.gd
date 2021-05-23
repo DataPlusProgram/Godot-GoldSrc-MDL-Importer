@@ -16,8 +16,6 @@ var DFilePath = "res://addons/GoldSRC_mdl_importer/DFile.gd"
 var matCapShaderPath = "res://addons/GoldSRC_mdl_importer/matCap.shader"
 
 
-
-
 enum A{
 	POSX = 0,
 	POSY = 1,
@@ -119,18 +117,16 @@ func mdlParse(path,textureFilter = false):
 		textures.append(parseTexture())
 			
 	if fileDict["numTextures"] == 0:
-		var searchPath = path.split(".")[0]
-		searchPath = searchPath + "t.mdl"
-		var fExist= File.new()
-		var doesExist = fExist.file_exists(searchPath)
-		fExist.close()
-					
-		if doesExist:
+		
+		var textureFile = doesTextureFileExist(path)
+		
+		if textureFile != null:
 			var textureParse = Node.new()
 			var script = load(self.get_script().get_path())
 			textureParse.set_script(script)
 			add_child(textureParse)
-			textures = textureParse.mdlParseTextures(searchPath,textureFilter)
+			#print("loading from texture file:"+textureFile)
+			textures = textureParse.mdlParseTextures(textureFile,textureFilter)
 		
 	parseBones()
 	fileDict["sequences"] = parseSequence()
@@ -169,6 +165,7 @@ func mdlParse(path,textureFilter = false):
 	
 	
 func mdlParseTextures(path,textureFilter): 
+	
 	textureFiltering = textureFilter
 	file = load(DFilePath).new()
 	
@@ -915,3 +912,31 @@ func initSkelAnimations(skel):
 	return
 
 
+func doesTextureFileExist(path):
+	
+	var files = []
+	var searchPath = path.substr(0,path.find_last("/")) + "/"
+	var fileName = path.substr(path.find_last("/"),-1).replace("/","")
+	fileName = fileName.substr(0,fileName.find("."))
+
+	var toFind1 = fileName+"t.mdl"
+	var toFind2 = fileName+"T.mdl"
+	var dir = Directory.new()
+	
+	dir.open(searchPath)
+	dir.list_dir_begin()
+	
+	while true:
+		var file = dir.get_next()
+		if file == "":
+			break
+		elif not file.begins_with("."):
+			files.append(file)
+
+	dir.list_dir_end()
+	
+	for f in files:
+		if f == toFind1 or f == toFind2:
+			return searchPath + f
+	
+	return null
