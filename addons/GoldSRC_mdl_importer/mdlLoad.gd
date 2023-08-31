@@ -1,5 +1,6 @@
-tool
 extends Node
+class_name MdlLoader
+
 var file
 var textures = []
 var fileDict = {}
@@ -12,8 +13,7 @@ var boneLocalTransformsInv = []
 var seqGroupFiles = []
 var textureFiltering
 
-var DFilePath = "res://addons/GoldSRC_mdl_importer/DFile.gd"
-var matCapShaderPath = "res://addons/GoldSRC_mdl_importer/matCap.shader"
+var matCapShaderPath = "res://addons/mdl_importer/matCap.shader"
 
 
 enum A{
@@ -37,14 +37,14 @@ func clearData():
 	seqGroupFiles = []
 
 
-func mdlParse(path,textureFilter = false): 
+func mdlParse(path, textureFilter = false): 
 	textureFiltering = textureFilter
 	
 	clearData()
 	var modelName = getModelNameFromPath(path)
 	var meshArr = []
 
-	file = load(DFilePath).new()
+	file = DFile.new()
 	if !file.loadFile(path):
 		print("model file not found:",path)
 		return false
@@ -94,24 +94,18 @@ func mdlParse(path,textureFilter = false):
 	fileDict["numtransitions"] = file.get_32()
 	fileDict["transitionindex"] = file.get_32()
 	
-
-		
 	seqGroupFiles.append(file)
-		
+	
 	for file in fileDict["numseqgroups"]-1:
 		var fileToFind = path.substr(path.find_last("/"))
 		fileToFind = fileToFind.split(".")[0]
-		fileToFind += "0" + String(file+1) + ".mdl"
+		fileToFind += "0" + str(file+1) + ".mdl"
 		fileToFind = path.substr(0,path.find_last("/")) + fileToFind
-		var fExist= File.new()
-		var doesExist = fExist.file_exists(fileToFind)
-		if doesExist:
-			file = load(DFilePath).new()
+		if FileAccess.file_exists(fileToFind):
+			file = DFile.new()
 			file.loadFile(fileToFind)
 			seqGroupFiles.append(file)
-				
-			
-		
+
 	file.seek(fileDict["textureindex"])
 	for i in fileDict["numTextures"]:
 		textures.append(parseTexture())
@@ -130,44 +124,39 @@ func mdlParse(path,textureFilter = false):
 		
 	parseBones()
 	fileDict["sequences"] = parseSequence()
-	if !fileDict["sequences"].empty():
+	if !fileDict["sequences"].is_empty():
 		boneItt3(fileDict["sequences"][0]["blends"][0][0])
 
 	meshArr = parseBodyParts(fileDict["numbodyparts"],modelName)
 	var meshNodeArr = []
-		
 
 	for m in meshArr:
-		var meshNode = MeshInstance.new()
+		var meshNode = MeshInstance3D.new()
 		meshNode.mesh = m["mesh"]
 		meshNode.name = m["meshName"]
 		meshNode.visible = m["visible"]
 		var eyePos = fileDict["eyePosition"]
 		meshNodeArr.append(meshNode)
-			
 
 	var skel = initSkel()
 	skel.name = modelName
 		
-	if !fileDict["sequences"].empty():
+	if !fileDict["sequences"].is_empty():
 		initSkelAnimations(skel)
 		
 	for i in meshNodeArr:
 		skel.add_child(i)
 		i.set_owner(skel)
 		
-		
 	skel.rotation_degrees.x = -90
 	skel.rotation_degrees.z = 90
 
 	return skel
 	
-	
-	
 func mdlParseTextures(path,textureFilter): 
 	
 	textureFiltering = textureFilter
-	file = load(DFilePath).new()
+	file = DFile.new()
 	
 	if !file.loadFile(path):
 		print("file not found")
@@ -196,10 +185,8 @@ func mdlParseTextures(path,textureFilter):
 	fileDict["numTextures"] = file.get_32()
 	fileDict["textureindex"] = file.get_32()
 	fileDict["texturedataindex"] = file.get_32()
-	
 
 	file.seek(fileDict["textureindex"])
-	
 	
 	for i in fileDict["numTextures"]:
 		textures.append(parseTexture())
@@ -210,11 +197,9 @@ func saveScene():
 	var i = 0
 	for c in get_children():
 		c.set_owner(self)
-
 	var packed_scene = PackedScene.new()
 	packed_scene.pack(self)
-	ResourceSaver.save(String(i) + ".tscn", packed_scene)
-	
+	ResourceSaver.save(packed_scene, str(i) + ".tscn")
 
 func parseTexture():
 	var textureDict = {}
@@ -224,7 +209,6 @@ func parseTexture():
 	textureDict["width"] = file.get_32()
 	textureDict["height"] = file.get_32()
 	textureDict["index"] = file.get_32()
-	
 	
 	var chrome = false
 	var additive = false
@@ -236,10 +220,7 @@ func parseTexture():
 	if textureDict["flags"] & 64 > 0: transparent = true
 	if textureDict["flags"] & 32 > 0: additive = true
 	
-	
-	
-	var image = Image.new()
-	image.create(w,h,false,Image.FORMAT_RGBA8)
+	var image = Image.create(w,h,false,Image.FORMAT_RGBA8)
 	
 	var pPos = file.get_position()
 	
@@ -253,17 +234,11 @@ func parseTexture():
 			var colorIndex = file.get_8()
 			colorArr.append(colorIndex)
 	
-
 	for c in 256:
 		var r = file.get_8() / 255.0
 		var g = file.get_8() / 255.0
 		var b = file.get_8() / 255.0
-		
-
 		pallete.append(Color(r,g,b))
-		
-	image.lock()
-	
 	
 	for y in h:
 		for x in w:
@@ -276,17 +251,12 @@ func parseTexture():
 			
 			image.set_pixel(x,y,color)
 
-	
-	image.unlock()
-	var texture = ImageTexture.new()
-	texture.create_from_image(image)
+	var texture = ImageTexture.create_from_image(image)
 	if !textureFiltering:
-		texture.flags -= texture.FLAG_FILTER
-		
-		
+		pass
+		#texture.flags -= Texture2D.FLAG_FILTER
 	file.seek(pPos)
-	
-	return {"texture":texture,"chrome":chrome,"additive":additive,"transparent":transparent}
+	return {"texture":texture,"chrome":chrome, "additive":additive, "transparent":transparent}
 	
 
 func parseSequence():
@@ -431,10 +401,10 @@ func parseBone():
 	boneDict["rot"] =getVectorRot(file)
 	boneDict["scaleP"] = getVectorXZY(file)
 	boneDict["scaleR"] = getVectorXZY(file)
-	boneDict["index"] = String(boneIndex)
-	boneDict["transform"] = Transform.IDENTITY
+	boneDict["index"] = str(boneIndex)
+	boneDict["transform"] = Transform3D.IDENTITY
 
-	if boneDict["name"] == "": boneDict["name"] = String(boneIndex)
+	if boneDict["name"] == "": boneDict["name"] = str(boneIndex)
 
 	boneIndex += 1
 	return boneDict
@@ -462,7 +432,7 @@ func parseBodyParts(numBodyParts,modelName):
 		for n in b["numModels"]:
 			
 			var bodyPartMesh = parseModel()
-			if n != 0: bodyPartName += String(n)
+			if n != 0: bodyPartName += str(n)
 			bodyPartArr.append({"mesh":bodyPartMesh,"meshName":bodyPartName,"visible":isFirst})#
 			isFirst = false
 	
@@ -490,11 +460,11 @@ func parseModel():
 	var norms = []
 	var boneMap = []
 	file.seek(modelDict["vertIndex"])
-	for i in range(0,modelDict["numverts"]):
+	for i in range(0, modelDict["numverts"]):
 		verts.append(getVectorXZY(file))
 	
 	file.seek(modelDict["normIndex"])
-	for i in range(0,modelDict["numNorms"]):
+	for i in range(0, modelDict["numNorms"]):
 		norms.append(getVectorXZY(file))
 	
 	
@@ -546,7 +516,7 @@ func parseModel():
 				runningMesh = SurfaceTool.new()
 				runningMesh.begin(Mesh.PRIMITIVE_TRIANGLES)
 			
-			runningMesh = createMesh(v,n,type,uv,bones,meshDict["skinref"],lastTextureIdx,runningMesh)
+			runningMesh = createMesh(v, n, type, uv, bones, meshDict["skinref"], lastTextureIdx, runningMesh)
 			
 			
 			if i == modelDict["numMesh"]-1 and polyIdx == meshDict["triVerts"].size()-1:
@@ -590,7 +560,6 @@ func parseMesh():
 
 	
 func parseTrivert():
-	
 	var count = file.get_16u()
 	
 	if count == 0:
@@ -624,7 +593,7 @@ func createMeshFromFan(vertices):
 	
 	surf.add_triangle_fan(triVerts,[],[],[],[])
 	surf.commit(mesh)
-	var meshNode = MeshInstance.new()
+	var meshNode = MeshInstance3D.new()
 	meshNode.mesh = mesh
 
 	return meshNode
@@ -636,17 +605,16 @@ func createMesh(vertices,normals,type,uv,boneIndices,textureIndex,lastTextureIdx
 	
 	var surf = runningMesh
 	
-	
 	var finalV = []
 	var finalN = []
 	var finalB = []
 	for v in vertices.size():
-		surf.add_normal(normals[v])
-		surf.add_uv(uv[v])
+		surf.set_normal(normals[v])
+		surf.set_uv(uv[v])
 		
 		var boneIndex = boneIndices[v]
 		var vert = vertices[v]
-		vert =  bones[boneIndices[v]]["transform"].xform(vert)
+		vert = bones[boneIndices[v]]["transform"] * vert
 		finalV.append(vert)
 		finalN.append(normals[v])
 		finalB.append(boneIndex)
@@ -660,10 +628,10 @@ func createMesh(vertices,normals,type,uv,boneIndices,textureIndex,lastTextureIdx
 		var triUvs = ret["uvs"]
 		var triBones = ret["bones"]
 		for v in triVerts.size():
-			surf.add_normal(triNomrals[v])
-			surf.add_uv(triUvs[v])
-			surf.add_bones([triBones[v],-1,-1,-1])
-			surf.add_weights([1,0,0,0])
+			surf.set_normal(triNomrals[v])
+			surf.set_uv(triUvs[v])
+			surf.set_bones([triBones[v],-1,-1,-1])
+			surf.set_weights([1,0,0,0])
 			surf.add_vertex(triVerts[v])
 	
 	if type == 1:
@@ -673,18 +641,17 @@ func createMesh(vertices,normals,type,uv,boneIndices,textureIndex,lastTextureIdx
 		var triUvs = ret["uvs"]
 		var triBones = ret["bones"]
 		for v in triVerts.size():
-			surf.add_normal(triNormals[v])
-			surf.add_uv(triUvs[v])
-			surf.add_bones([triBones[v],0,0,0])
-			surf.add_weights([1,0,0,0])
+			surf.set_normal(triNormals[v])
+			surf.set_uv(triUvs[v])
+			surf.set_bones([triBones[v],0,0,0])
+			surf.set_weights([1,0,0,0])
 			surf.add_vertex(triVerts[v])
 			
 	return runningMesh
 
 func createMat(textureIndex):
-	
 	if !matCache.has(textureIndex):
-		var mat = SpatialMaterial.new()	
+		var mat = StandardMaterial3D.new()	
 		if textures == null:
 			return mat
 		
@@ -699,7 +666,7 @@ func createMat(textureIndex):
 			mat.albedo_texture = text
 			mat.uv1_scale.x /= text.get_width()
 			mat.uv1_scale.y /= text.get_height()
-			if textDict["additive"]: mat.params_blend_mode = SpatialMaterial.BLEND_MODE_ADD
+			if textDict["additive"]: mat.params_blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 			
 			if textDict["transparent"]:
 				#mat.flags_transparent = true
@@ -713,9 +680,6 @@ func createMat(textureIndex):
 			shaderMat.shader = shader
 			shaderMat.set_shader_param("matcap_texture",text)
 			matCache[textureIndex] = shaderMat
-		
-	
-	
 	return(matCache[textureIndex])
 
 	
@@ -732,14 +696,13 @@ func boneItt3(seq):
 		var animPos = seq["pos"][boneIdx]
 		var animRot = seq["rot"][boneIdx]
 		
-		var boneRestTransform = getTransform(bonePos,boneRot)
+		var boneRestTransform = getTransform(bonePos, boneRot)
 		
 		bone["restTransform"] = boneRestTransform
 		
 		var pos = bonePos + animPos
 		var rot = boneRot + animRot
 		
-
 		var t = getTransform(pos,rot)
 		boneLocalTransforms.append(t)
 		boneLocalTransformsInv.append(t.inverse())
@@ -758,36 +721,33 @@ func boneItt3(seq):
 			
 			parentIdx = parentBone["parentIndex"]
 			parentBone = bones[parentIdx]
-		 
-		
 		bone["transform"] = t
-		
 
 
 func getVectorXZY(file):
 	var vec = file.get_Vector32()
 	#return Vector3(-vec.x,vec.z,vec.y)
-	return Vector3(vec.x,vec.y,vec.z)
+	return Vector3(vec.x, vec.y, vec.z)
 
 func getVectorRot(file):
 	var vec = file.get_Vector32()
-	return Vector3(vec.x,vec.y,vec.z)
+	return Vector3(vec.x, vec.y, vec.z)
 
 
-func getTransform(pos,rot):
-	var t = Transform.IDENTITY	
+func getTransform(pos, rot):
+	var t = Transform3D.IDENTITY
 	t.origin = pos 
-	t.basis = t.basis.rotated(Vector3(1,0,0),rot.x)
-	t.basis = t.basis.rotated(Vector3(0,1,0),rot.y)
-	t.basis = t.basis.rotated(Vector3(0,0,1),rot.z)
+	t.basis = t.basis.rotated(Vector3(1,0,0), rot.x)
+	t.basis = t.basis.rotated(Vector3(0,1,0), rot.y)
+	t.basis = t.basis.rotated(Vector3(0,0,1), rot.z)
 	return t
 
 func getTransformQuat(pos,rot):
-	var t = Transform.IDENTITY	
+	var t = Transform3D.IDENTITY
 	t.origin = pos 
-	t.basis = t.basis.rotated(Vector3(1,0,0),rot.x)
-	t.basis = t.basis.rotated(Vector3(0,1,0),rot.y)
-	t.basis = t.basis.rotated(Vector3(0,0,1),rot.z)
+	t.basis = t.basis.rotated(Vector3(1,0,0), rot.x)
+	t.basis = t.basis.rotated(Vector3(0,1,0), rot.y)
+	t.basis = t.basis.rotated(Vector3(0,0,1), rot.z)
 	return  t.basis.get_rotation_quat()
 	
 	return t
@@ -844,24 +804,24 @@ func rearrange(arr,i,a,b,c):
 	return [arr[i+a],arr[i+b],arr[i+c]]
 	
 func initSkel():
-	var skel = Skeleton.new()
+	var skel = Skeleton3D.new()
 	for b in bones.size():
 		var bone = bones[b]
-		
 		skel.add_bone(bone["name"])
-		
 	for b in bones.size():
 		var bone = bones[b]
 		var sBoneIdx = skel.find_bone(bone["name"])
-		skel.set_bone_parent(sBoneIdx,bone["parentIndex"])
-		skel.set_bone_rest(sBoneIdx,boneLocalTransforms[b])
-		
+		skel.set_bone_parent(sBoneIdx, bone["parentIndex"])
+		skel.set_bone_rest(sBoneIdx, boneLocalTransforms[b])
+		skel.set_bone_pose_position(sBoneIdx, boneLocalTransforms[b].origin)
+		skel.set_bone_pose_rotation(sBoneIdx, boneLocalTransforms[b].basis.get_rotation_quaternion())
 	return skel
 	
 func initSkelAnimations(skel):
 	var animPlayer : AnimationPlayer = AnimationPlayer.new() 
 	animPlayer.name = "anims"
 	var firstAnim = true
+	var animLibrary : AnimationLibrary = AnimationLibrary.new()
 	for seq in fileDict["sequences"]:
 		var anim = Animation.new()
 		var fps = seq["fps"]
@@ -870,7 +830,7 @@ func initSkelAnimations(skel):
 		
 		
 		
-		animPlayer.add_animation(seq["name"].to_lower(),anim)
+		animLibrary.add_animation(seq["name"].to_lower(),anim)
 		anim.length = delta*numFrames
 		
 		
@@ -883,8 +843,12 @@ func initSkelAnimations(skel):
 		for boneIdx in bones.size():
 			var bone = bones[boneIdx]
 			var animParentPath = "../" + skel.name + ":" + bone["name"]
-			var trackIdx = anim.add_track(Animation.TYPE_TRANSFORM)
-			anim.track_set_path(trackIdx, animParentPath)
+			var trackPosIdx = anim.add_track(Animation.TYPE_POSITION_3D)
+			var trackRotIdx = anim.add_track(Animation.TYPE_ROTATION_3D)
+			var trackScaleIdx = anim.add_track(Animation.TYPE_SCALE_3D)
+			anim.track_set_path(trackPosIdx, animParentPath)
+			anim.track_set_path(trackRotIdx, animParentPath)
+			anim.track_set_path(trackScaleIdx, animParentPath)
 
 			var prevKey = null
 
@@ -898,22 +862,24 @@ func initSkelAnimations(skel):
 				var t = boneLocalTransformsInv[boneIdx] * getTransform(pos,rot)
 				
 				t.translated(pos)
-				var rotQuat = t.basis.get_rotation_quat()
+				var rotQuat = t.basis.get_rotation_quaternion()
 				
 				
 				var key = {"location":t.origin,"rotation":rotQuat,"scale":Vector3(1,1,1)}
 				var keyHash = key.hash()
 				if prevKey != keyHash:
-					anim.track_insert_key(trackIdx,f*delta,key)
+					#anim.track_insert_key(trackPosIdx, f*delta, key.location)
+					anim.track_insert_key(trackRotIdx, f*delta, key.rotation)
+					anim.track_insert_key(trackScaleIdx, f*delta, key.scale)
 				prevKey = keyHash
-				
+	  
+	animPlayer.add_animation_library("mdl", animLibrary)          
 	skel.add_child(animPlayer)
 	animPlayer.set_owner(skel)
 	return
 
 
 func doesTextureFileExist(path):
-	
 	var files = []
 	var searchPath = path.substr(0,path.find_last("/")) + "/"
 	var fileName = path.substr(path.find_last("/"),-1).replace("/","")
@@ -921,9 +887,7 @@ func doesTextureFileExist(path):
 
 	var toFind1 = fileName+"t.mdl"
 	var toFind2 = fileName+"T.mdl"
-	var dir = Directory.new()
-	
-	dir.open(searchPath)
+	var dir = DirAccess.open(searchPath)
 	dir.list_dir_begin()
 	
 	while true:

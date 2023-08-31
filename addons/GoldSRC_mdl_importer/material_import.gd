@@ -1,5 +1,4 @@
-# material_import.gd
-tool
+@tool
 extends EditorPlugin
 
 

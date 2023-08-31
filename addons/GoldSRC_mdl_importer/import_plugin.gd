@@ -1,51 +1,55 @@
-tool
+@tool
 extends EditorImportPlugin
 
 enum Presets { DEFAULT }
 
-func get_importer_name():
-	return "GoldSrc mdl importer"
+func _get_importer_name():
+	return "Mdl importer"
 	
-func get_recognized_extensions():
+func _get_recognized_extensions():
 	return ["mdl"]
 	
 
-func get_visible_name():
+func _get_visible_name():
 	return "GoldSrc mdl"
 
-func get_preset_count():
+func _get_preset_count():
 	return Presets.size()
 	
-func get_preset_name(preset):
+func _get_preset_name(preset):
 	match preset:
 		Presets.DEFAULT: return "Default"
 		_: return "Unknown"
 
 
-func get_import_options(preset):
+func _get_import_options(preset, intvar):
 	match preset:
 		Presets.DEFAULT: return[{"name":"texture_filtering", "default_value":false}]
 		_: return[]
 	
-func get_option_visibility(option, options):
+func _get_option_visibility(option, options, dictiovar):
 	return true
 	
-func get_save_extension():
-	return ".tscn"
+func _get_save_extension():
+	return "tscn"
 	
-func get_resource_type():
+func _get_resource_type():
 	return "PackedScene"
 
-func import(source_file, save_path, options, r_platform_variants, r_gen_files):
-	var textureFiltering  = options["texture_filtering"]
+func _get_priority():
+	return 1.0
 
-	var mdlLoader = load("res://addons/GoldSRC_mdl_importer/mdlLoad.gd").new()
-	var skel = mdlLoader.mdlParse(source_file,textureFiltering)
+func _get_import_order():
+	return 0
+
+func _import(source_file, save_path, options, r_platform_variants, r_gen_files):
+	var mdlLoader = MdlLoader.new()
+	var skel = mdlLoader.mdlParse(source_file, false)
 	if skel == null:
 		return false
 	var packed_scene = PackedScene.new()
 	packed_scene.pack(skel)
 	
-	var filename = save_path + "." + get_save_extension()
-	return ResourceSaver.save(filename, packed_scene)
+	var filename = save_path + "." + _get_save_extension()
+	return ResourceSaver.save(packed_scene, filename)
 
